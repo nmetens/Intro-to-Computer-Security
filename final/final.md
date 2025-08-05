@@ -22,16 +22,30 @@ Diffuculty: Easy
 
 Although the difficaulty was "easy", this one took the longest to solve.
 
-![image](capture/.png)
-![image](capture/.png)
-![image](capture/.png)
-![image](capture/.png)
-![image](capture/.png)
-![image](capture/.png)
-![image](capture/.png)
-![image](capture/.png)
-![image](capture/.png)
-![image](capture/.png)
+![image](capture/1.png)
+
+![image](capture/2.png)
+
+The room had two files to download: `usernames.txt` and `passwords.txt`:
+![image](capture/3.png)
+
+![image](capture/login.png)
+
+At first, I tried random usernames to see what the message would be if I inputed something wrong:
+![image](capture/user-not-exist.png)
+![image](capture/4.png)
+
+After 10 failed usernames attempts with a bas password, the error came up with a captcha math problem:
+![image](capture/captcha.png)
+
+Next, I went to the command line and used curl for faster web access. The main curl command was `curl http://10.201.63.166`. This redirected me to the login page and returned the GET. Next, I posted to the page with this curl command: `curl -X POST http://10.201.63.166/login -d "username=metens&password=pass"`, where the `-d` is for the data in the form. Now, I could enumerate much faster and saw that when I solved the captcha, the message would once again tell me that the username was non-existing:
+![image](capture/curl-cap.png)
+![image](capture/solved-cap.png)
+
+To solve the captcha in curl, I simply added `&captcha=<result>` to the string containing the username and password.
+
+I developed this script to continuously test each username in the `usernames.txt` file until it returned a "Invalid password" error, showing that the username was correct, but the password not.
+
 
 ```sh
 #!/bin/bash
@@ -89,7 +103,6 @@ done
 
 After about 5-10 minutes of the program running, it finally found the correct username that returned "Invalid password":
 ![image](capture/username-found.png)
-
 ![image](capture/invalid-password.png)
 
 We have successfully enumerated the username. It took **307 attempts**! Now, that we have the username, we can enumerate the password. To do that, we need to slightly update the script, I created a new one:
@@ -140,6 +153,9 @@ tail -n +$attempt $passwords | while IFS= read -r password; do
 done
 ```
 
+After 344 attempts, the password was also enumerated. So the username is "natalie" and the password is "sk8board". I went back to the url in the web and typed those in and received the flag:
 ![image](capture/password-found.png)
 ![image](capture/flag.png)
 ![image](capture/solved.png)
+
+This room was about using basic curl commands, bash scripting for enumeration, and using brute force on all of the passwords and usernames in the given text files. It reminds me of using the rockyou.txt file in some of the labs to crack passwords using hashcat, but this time, through curl.
