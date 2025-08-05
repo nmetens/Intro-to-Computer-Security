@@ -12,7 +12,8 @@ This is the final project for Intro to Computer Security. In this final, I compl
 ## Table of Contents
 1. [Capture!](#capture)
 2. [Security Footage](#security-footage)
-3. [Crypto Failure](#cryptic-failure)
+3. [Crypto Failure](#crypto-failure)
+
 
 ---
 ## Capture!
@@ -168,5 +169,144 @@ This room was about using basic curl commands, bash scripting for enumeration, a
 ## Crypto Failure
 ### Encrypting your own military-grade encryption is usually not the best idea.
 **Dificulty:** *Medium*
+
+![image](crypt/home.png)
+![image](crypt/2-flag.png)
+
+The first thing I see is this:
+
+![image](crypt/guest.png)
+
+I am logged in as guest, and there is a long password looking thing that is hidden. Then there is a message saying the "SSO cookie is protected using military-grade en**crypt**ion". The **crypt** highlight seems important right off the bat, so I searched it up and found [this](https://www.php.net/manual/en/function.crypt.php). In PHP, we can call a function called `crypt()`. It takes a string, and a salt. The salt allows the first string to becom hashed. This is cool.
+
+The next thing that was interesting was "SSO cookie". I searched the web and found this: "An SSO cookie, or Single Sign-On cookie, is a small piece of data stored in a user's browser that allows them to access multiple applications or websites with a single login." So then I figured I'd investigate the page using inspect mode:
+
+![image](crypt/inspect.png)
+
+I see the cookie here, and it is indeed set this way for the guest user. Now, I went to the command lined and typed `curl -I http://10.201.28.11` to see only the headers of the GET response:
+
+![image](crypt/get.png)
+
+Right away, we can see that the cookie is different than the last time we fetched the page. After some investigation on the cookie itself, I began to notice a pattern. I looked hard at each cookie and saw that there were some `%2F` in there, this looks like a special encoding, and indeed it is! I found [this source on geeks for geeks](https://www.w3schools.com/tags/ref_urlencode.ASP) that shows what the encoding translates to:
+
+![image](crypt/geek.png)
+
+Geeks for Geeks said "Your browser will encode input, according to the character-set used in your page. The default character-set in HTML5 is UTF-8." So each cookie is a url encoded string. This means I can decode them. I found [this page here for url decoding](https://www.urldecoder.org/). I decoded two cookies I fetched from the url, and found a pattern:
+
+![image](crypt/url-decode.png)
+
+```
+// The first url-decoded cookie:
+RXxvlsMaeHe5URXrJVbD8zZ4nkRXEwZI8bhi..cRXvtYh5l5EBtIRXqC5B7tEo6T.RXhnpA/XzKVOURXsDqDjyoBgWcRXX86PX1JkHnARXlDxDPYNU2xwRX7ExYaVdHQ82RXLdFhenadnlYRXjAFBN.glgAsRX/XEzkeYYgr.RXp8.J05UGQYURXM9RxACEm8eURXRCcStHme13oRXAbZixFAnxe2RXzW1DwG/NNdgRXRCaaDN21g8oRXqQ4hwNqRCakRXWYWirH33lewRXmY9pJ5PrOmg
+
+// A pattern emerges:
+RXxvlsMaeHe5U
+RXrJVbD8zZ4nk
+RXEwZI8bhi..c
+RXvtYh5l5EBtI
+RXqC5B7tEo6T.
+RXhnpA/XzKVOU
+RXsDqDjyoBgWc
+RXX86PX1JkHnA
+RXlDxDPYNU2xw
+RX7ExYaVdHQ82
+RXLdFhenadnlY
+RXjAFBN.glgAs
+RX/XEzkeYYgr.
+RXp8.J05UGQYU
+RXM9RxACEm8eU
+RXRCcStHme13o
+RXAbZixFAnxe2
+RXzW1DwG/NNdg
+RXRCaaDN21g8o
+RXqQ4hwNqRCak
+RXWYWirH33lew
+RXmY9pJ5PrOmg
+
+
+// Here is another cookie from a separate fetch (url decoded):
+K4TrHf32Nu9G.
+K4FrTexv8C4VU
+K4NJcVzyVYEzY
+K4Iyl.ZSF9GzU
+K46yDRqwK7EdU
+K4.dySrT4OqCU
+K4VfcsBYZaBF2
+K4bkC20QpLfiY
+K4oT6ozqf1zwE
+K4OVShJS68db6
+K4q02aCkYV02s
+K4pPGaUryQvuo
+K4BsowGU2K8fg
+K4U84anNv27jw
+K4gAoVne/4Vt.
+K4Vso6wOHZAXU
+K4SK9J8148JZg
+K4/gPoUIjXQvk
+K4v2H8OF9qZzg
+K4ySMUEaDhxOU
+K4Fxc6OjJk2vQ
+K4tmO.adIxnao
+K4ttTk.OLLGqw
+K4hjWOKhaYzXk
+K4iFUbubW7BUY
+K4gcq/s7xWkoQ
+K4fVm9kQ2U2X.
+K4sOJCu7ZIO8o
+K4FsXb3FcELfg
+```
+
+This pattern shows that the first two characters of each 13 character long block is the same. I went back to investigate the lecture slides "CryptAndPasswords". The first two characters of each block in the cookie appear to be a salt. And we learned that a short salt is the wrong way to go. Since the salt must be unique per user and per password, this is why it is a new random salt each time we fetch the url.
+
+If we remember, the "Set-Cookie" field returned when investigating the headers was set to guest. I changed it to admin and refreshed the page:
+
+![image](crypt/admin.png)
+
+This did nothing, and actually logged me out! At this point I was stuck to I went online to search for clues about this issue. What I found was enough to keep me going. It turns out that the cookie is made up of the following sections:
+
+"user:user_agent:encrypted_key".
+
+The `:` are the delimiters between each. If we curl again, this time with the verbose option, we can see the user agent:
+
+![image](crypt/verbose.png)
+
+The hashed cookie then looks like this:
+
+"guest:curl/8.14.1:<encrypted_key>"
+
+Now, if we use the php crypt function I found earlier, and use the salt "Fh", we get this:
+
+![image](crypt/func.png)
+
+The result of the crypt function is the same as the first 13 bytes of data in the verbose curl!
+This means that every 8 bytes in the unhashed connection of terms, we hash it using the crypt function.
+
+The next thing to do is to hash the admin user into the cookie to trick the browser that we are logged in as admin. First I ran the crypt function on the admin user with the salt "Fh":
+
+```php
+echo crypt("admin:cu", "Fh"); // FhktSQgm9fXKU
+```
+
+The trick is to perform a curl that saves the cookie in a txt file, then edit the first chunk in the cookie to have the admin user, and then curl the url with the cookie:
+
+```
+curl -I -c cookie.txt http://<ip>
+// Edit the cookie with the new random salt and resent with admin instead of guest
+curl -I -b cookie.txt http://<ip>
+```
+
+![image](crypt/save-cookie.png)
+![image](crypt/change-cookie.png)
+![image](crypt/re-use-cookie.png)
+
+As we can see, we have successfully recieved the first flag after tricking the browser that we were admin, by changing the user hash in the secure cookie variable.
+
+Now, the fetched page says "Now I want the key". That is the part that comes after the user and the user_agent in the colon separated cookie.
+
+To do this, I wrote a script that will curl the ip address once, and then decipher the secret key:
+
+```sh
+
+```
 
 
