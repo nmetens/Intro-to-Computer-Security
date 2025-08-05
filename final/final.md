@@ -197,6 +197,8 @@ The `ffuf` tool found `index.php.bak` as one of the files, so lets visit it: `cu
 ![image](crypt/php.conf.png)
 ![image](crypt/admin-res.png)
 
+The .bak files shows that each cookie is created using the `$user` and the `$enc_secret_key` in the `generate_cookie` function. There is a `generate_salt` function that makes a salt of size 2 characters. And the check for the first flag is when the user == admin, not guest.
+
 I see the cookie here, and it is indeed set this way for the guest user. Now, I went to the command lined and typed `curl -I http://10.201.28.11` to see only the headers of the GET response:
 
 ![image](crypt/get.png)
@@ -276,7 +278,7 @@ If we remember, the "Set-Cookie" field returned when investigating the headers w
 
 ![image](crypt/admin.png)
 
-This did nothing, and actually logged me out! At this point I was stuck to I went online to search for clues about this issue. What I found was enough to keep me going. It turns out that the cookie is made up of the following sections:
+This did nothing, and actually logged me out! It turns out that the cookie string is made up of the following sections:
 
 "user:user_agent:encrypted_key".
 
