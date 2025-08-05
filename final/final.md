@@ -14,7 +14,6 @@ This is the final project for Intro to Computer Security. In this final, I compl
 2. [Security Footage](#security-footage)
 3. [Crypto Failure](#crypto-failure)
 
-
 ---
 ## Capture!
 ### Can you bypass the login form?
@@ -164,6 +163,8 @@ This room was about using basic curl commands, bash scripting for enumeration, a
 ## Security Footage
 ### Perform digital forensics on a network capture to recover footage from a camera.
 **Dificulty:** *Medium*
+
+See video explanation.
 
 ---
 ## Crypto Failure
@@ -402,24 +403,45 @@ Basically, the script brute forces the secure_cookie string that is returned fro
 
 Here is an example:
 
-Let's say that the secure string is this: "guest:AAAA...A:THM{key}" (we have control of the user agent). Since we are working in 8 byte character chunks, we already know the beginning hashed portion (assuming the salt is "2C"): crypt("guest:AA", "2C") ==> 2CT34kM2n/Ikg. Now, we go all the way to the end, only exposing 1 character of the secret key: crypt("AAAAAA:?", "2C"), where the `?` is the unkown 7th character. We replace the `?` with a character from the charset and loop through it until we find the matching last 13 byte url decoded block that is in the secure cookie. Then we append that found character to the FOUND key variable in the script.
+Let's say that the secure string is this: "guest:AAAA...A:THM{key_1}" (we have control of the user agent). Since we are working in 8 byte character chunks, we already know the beginning hashed portion (assuming the salt is "2C"): crypt("guest:AA", "2C") ==> 2CT34kM2n/Ikg. Now, we go all the way to the end, only exposing 1 character of the secret key: crypt("AAAAAA:?", "2C"), where the `?` is the unkown 7th character. We replace the `?` with a character from the charset and loop through it until we find the matching last 13 byte url decoded block that is in the secure cookie. Then we append that found character to the FOUND key variable in the script.
 
-We know from the example above that "guest:AAAA...A:THM{key}" is the string when it is not crypted. So the first character in the secret key is 'T'. This means, the last block in the cookie would be: 2CMT56W4uaPKU. We loop through the entire charset until we find get to the letter T and we get a matching hash.
+We know from the example above that "guest:AAAA...A:THM{key_1}" is the string when it is not crypted. So the first character in the secret key is 'T'. This means, the last block in the cookie would be: 2CMT56W4uaPKU. We loop through the entire charset until we find get to the letter T and we get a matching hash.
 
 Then, we shorten the user agent on the next consecutive curl call to the server, get a new cookie, shift our 13 byte url encoded window down one character until we get to the new unknown character in the secret key, loop through the charset again until our crypt method matches the block from the secure cookie that was saved in the cookie.txt file from the curl,and then repeat until all characters in the secret key have been cracked.
 
-The next one would be: crypt("AAAAA:TH", "2C") ==> 2CgAv.QOsc1uU
+1. the string: "guest:AAAAAAAA:THM{key}"
 
-Which we got by looping like so:
+2. Generate a random salt: "2C".
+
+3. The `index.php.bak` file on the server takes the string, and encodes each 8 block byte using the salt to create a cookie:
+    crypt("guest:AA", "2C") ==> 2CMT56W4uaPKU
+    crypt("AAAAAA:T", "2C") ==> 2CT34kM2n/Ikg
+    crypt("HM{key_1", "2C") ==> 2C.shhuEzJfOE
+
+4. secure_cookie="2CMT56W4uaPKU2CT34kM2n/Ikg2C.shhuEzJfOE"
+
+To decode the secret key, we move our 8 byte window so that the 8th byte is the first character in the secrete key, which is initially unknown. Then we loop through the character set until we get the matching hashed block:
+
+crypt("AAAAAA:a", "2C") ==> no match
+crypt("AAAAAA:b", "2C") ==> no match
+crypt("AAAAAA:c", "2C") ==> no match
+...
+crypt("AAAAAA:T", "2C") ==> 2CT34kM2n/Ikg MATCH!
+
+Now, on the next iteration (assuming the salt is the same, although in reality it isn't), we change the user agent accordingly:
+"guest:AA AAAAAAAA AAAAA:T? <remaining_unkown_key>"
+2CMT56W4uaPKU 2CYyjMuZ7J1O. 2CgAv.QOsc1uU ...
+
+We loop through the charset again until our crypt function matches 2CgAv.QOsc1uU:
 crypt("AAAAA:Ta", "2C") ==> no match
 crypt("AAAAA:Tb", "2C") ==> no match
 crypt("AAAAA:Tc", "2C") ==> no match
 ...
-crypt("AAAAA:TH", "2C") ==> 2CgAv.QOsc1uU
+crypt("AAAAA:TH", "2C") ==> 2CgAv.QOsc1uU MATCH!
 
 And then the next one: crypt("AAAA:THM", "2C") ==> 2C5nPXyPr/8uE
 Then, once we get to the last charachter, we have successfully matched the last item and found the secret key:
-crypt("THM{key}", "2C") ==> 2CWpY6OzP0q9M
+crypt("M{key_1}", "2C") ==> 2Cn2UUDblLITA
 
 Each new character cracked, we shift our user agent and make it shorter. It starts out with 256 A's, then 255 A's, etc., until the secret key is cracked.
 
