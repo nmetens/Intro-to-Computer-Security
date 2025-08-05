@@ -183,6 +183,20 @@ The next thing that was interesting was "SSO cookie". I searched the web and fou
 
 ![image](crypt/inspect.png)
 
+If we look more closely in the inspection and open the html, there is a comment that says "remember to remove .bak files". I searched the web and found this: "bak files are typically backup files used by various software applications to store copies of data. They are often created automatically when a program is about to overwrite an existing file, acting as a safeguard against data loss." Interesting, maybe I can access a `.bak` file through the url?
+
+![image](crypt/bak.png)
+
+I searched online for a way to curl different files ending with the `.bak` extension. I found [this tool](https://asciinema.org/a/211350) called `ffuf`. It is a fast web fuzzer that searches for files on a url using a common wordlist. I used `locate common.txt` to see where my common.txt wordlist was located and it is in `/usr/share/wordlists/dirb/common.txt` in my kali vm. The command using `ffuf` is : `ffuf -u http://10.201.8.255/FUZZ.bak` -w /usr/share/wordlists/dirb/common.txt`, where `-u` is the target url to search, and `-w` is the wordlist. `FUZZ` is what is replaced by each word in the common text file. Here is what I found:
+
+![image](crypt/common.png)
+![image](crypt/fuzz.png)
+
+The `ffuf` tool found `index.php.bak` as one of the files, so lets visit it: `curl htt://10.201.8.255/index.php.bak`:
+
+![image](crypt/php.conf.png)
+![image](crypt/admin-res.png)
+
 I see the cookie here, and it is indeed set this way for the guest user. Now, I went to the command lined and typed `curl -I http://10.201.28.11` to see only the headers of the GET response:
 
 ![image](crypt/get.png)
@@ -303,7 +317,7 @@ As we can see, we have successfully recieved the first flag after tricking the b
 
 Now, the fetched page says "Now I want the key". That is the part that comes after the user and the user_agent in the colon separated cookie.
 
-To do this, I wrote a script that will curl the ip address once, and then decipher the secret key:
+To do this, I wrote a script with the help of AI that will curl the ip address once, and then decipher the secret key:
 
 ```sh
 
