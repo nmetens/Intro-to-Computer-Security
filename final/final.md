@@ -396,8 +396,34 @@ echo "$FOUND" # Display the flag
 
 This program took multiple days and many hours to make work. 
 
+How it works is this:
 
-The result of the script:
+Basically, the script brute forces the secure_cookie string that is returned from a GET request to the server. We know the beginning two sections of the secure_cookie string: "guest:AAAAAAAA....:<secret_key>" and we control the user agent in the middle. Our goal is to move an 8 byte character window across the `<secret_key>` portion of the cookie, comparing one character at a time from the charset "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!/_{}" until we get the matching block in the cookie, meaning we found the correct character at that instance. Then we shift the window forward to find the next one.
+
+Here is an example:
+
+Let's say that the secure string is this: "guest:AAAA...A:THM{key}" (we have control of the user agent). Since we are working in 8 byte character chunks, we already know the beginning hashed portion (assuming the salt is "2C"): crypt("guest:AA", "2C") ==> 2CT34kM2n/Ikg. Now, we go all the way to the end, only exposing 1 character of the secret key: crypt("AAAAAA:?", "2C"), where the `?` is the unkown 7th character. We replace the `?` with a character from the charset and loop through it until we find the matching last 13 byte url decoded block that is in the secure cookie. Then we append that found character to the FOUND key variable in the script.
+
+We know from the example above that "guest:AAAA...A:THM{key}" is the string when it is not crypted. So the first character in the secret key is 'T'. This means, the last block in the cookie would be: 2CMT56W4uaPKU. We loop through the entire charset until we find get to the letter T and we get a matching hash.
+
+Then, we shorten the user agent on the next consecutive curl call to the server, get a new cookie, shift our 13 byte url encoded window down one character until we get to the new unknown character in the secret key, loop through the charset again until our crypt method matches the block from the secure cookie that was saved in the cookie.txt file from the curl,and then repeat until all characters in the secret key have been cracked.
+
+The next one would be: crypt("AAAAA:TH", "2C") ==> 2CgAv.QOsc1uU
+
+Which we got by looping like so:
+crypt("AAAAA:Ta", "2C") ==> no match
+crypt("AAAAA:Tb", "2C") ==> no match
+crypt("AAAAA:Tc", "2C") ==> no match
+...
+crypt("AAAAA:TH", "2C") ==> 2CgAv.QOsc1uU
+
+And then the next one: crypt("AAAA:THM", "2C") ==> 2C5nPXyPr/8uE
+Then, once we get to the last charachter, we have successfully matched the last item and found the secret key:
+crypt("THM{key}", "2C") ==> 2CWpY6OzP0q9M
+
+Each new character cracked, we shift our user agent and make it shorter. It starts out with 256 A's, then 255 A's, etc., until the secret key is cracked.
+
+The result of the script running in kali:
 
 When the program hangs:
 ![image](crypt/hang.png)
