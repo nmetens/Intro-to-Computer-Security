@@ -399,7 +399,7 @@ This program took multiple days and many hours to make work.
 
 How it works is this:
 
-Basically, the script brute forces the secure_cookie string that is returned from a GET request to the server. We know the beginning two sections of the secure_cookie string: "guest:AAAAAAAA....:<secret_key>" and we control the user agent in the middle. Our goal is to move an 8 byte character window across the `<secret_key>` portion of the cookie, comparing one character at a time from the charset "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!/_{}" until we get the matching block in the cookie, meaning we found the correct character at that instance. Then we shift the window forward to find the next one.
+Basically, the script brute forces the secure_cookie string that is returned from a GET request to the server. We know the beginning two sections of the secure_cookie string: "guest:AAAAAAAA....:<secret_key>" and we control the user agent in the middle. Our goal is to move an 8 byte character window across the `<secret_key>` portion of the cookie, comparing one character at a time from the charset "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.!/_{}" until we get the matching block in the cookie, meaning we found the correct character at that instance. Then we shift the window forward to find the next one.
 
 Here is an example:
 
@@ -418,7 +418,7 @@ Then, we shorten the user agent on the next consecutive curl call to the server,
     crypt("AAAAAA:T", "2C") ==> 2CT34kM2n/Ikg
     crypt("HM{key1}", "2C") ==> 2C.shhuEzJfOE
 
-4. secure_cookie="2CMT56W4uaPKU2CT34kM2n/Ikg2CxYAo5Q4ntgk"
+4. secure_cookie="2CMT56W4uaPKU2CT34kM2n/Ikg2CObx4L116f.Y"
 
 To decode the secret key, we move our 8 byte window so that the 8th byte is the first character in the secrete key, which is initially unknown. Then we loop through the character set until we get the matching hashed block:
 
@@ -442,7 +442,7 @@ crypt("AAAAA:TH", "2C") ==> 2CgAv.QOsc1uU MATCH! <br>
 And then the next one: crypt("AAAA:THM", "2C") ==> 2C5nPXyPr/8uE <br>
 
 Then, once we get to the last charachter, we have successfully matched the last item and found the secret key: <br>
-crypt("M{key1}", "2C") ==> 2CxYAo5Q4ntgk 
+crypt("HM{key1}", "2C") ==> 2CObx4L116f.Y 
 
 Each new character cracked, we shift our user agent and make it shorter. It starts out with 256 A's, then 255 A's, etc., until the secret key is cracked.
 
