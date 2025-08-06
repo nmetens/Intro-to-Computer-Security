@@ -428,20 +428,20 @@ crypt("AAAAAA:c", "2C") ==> no match <br>
 ... <br>
 crypt("AAAAAA:T", "2C") ==> 2CT34kM2n/Ikg MATCH!
 
-Now, on the next iteration (assuming the salt is the same, although in reality it isn't), we change the user agent accordingly:
+Now, on the next iteration (assuming the salt is the same, although in reality it isn't), we change the user agent accordingly: <br>
 "guest:AA AAAAAAAA AAAAA:T? <remaining_unkown_key>"
 2CMT56W4uaPKU 2CYyjMuZ7J1O. 2CgAv.QOsc1uU ...
 
 We loop through the charset again until our crypt function matches 2CgAv.QOsc1uU:
-crypt("AAAAA:Ta", "2C") ==> no match
-crypt("AAAAA:Tb", "2C") ==> no match
-crypt("AAAAA:Tc", "2C") ==> no match
-...
-crypt("AAAAA:TH", "2C") ==> 2CgAv.QOsc1uU MATCH!
+crypt("AAAAA:Ta", "2C") ==> no match <br>
+crypt("AAAAA:Tb", "2C") ==> no match <br>
+crypt("AAAAA:Tc", "2C") ==> no match <br>
+... <br>
+crypt("AAAAA:TH", "2C") ==> 2CgAv.QOsc1uU MATCH! <br>
 
-And then the next one: crypt("AAAA:THM", "2C") ==> 2C5nPXyPr/8uE
+And then the next one: crypt("AAAA:THM", "2C") ==> 2C5nPXyPr/8uE <br>
 
-Then, once we get to the last charachter, we have successfully matched the last item and found the secret key:
+Then, once we get to the last charachter, we have successfully matched the last item and found the secret key: <br>
 crypt("M{key1}", "2C") ==> 2CxYAo5Q4ntgk 
 
 Each new character cracked, we shift our user agent and make it shorter. It starts out with 256 A's, then 255 A's, etc., until the secret key is cracked.
